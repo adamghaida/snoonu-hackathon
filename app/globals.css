@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+:root {
+  /* Snoonu Brand Colors - Simplified */
+  --snoonu-red: #E31837;
+  --snoonu-red-dark: #B8132C;
+  --snoonu-black: #1A1A1A;
+  --snoonu-white: #FFFFFF;
+  --snoonu-gray: #F5F5F5;
+  --snoonu-gray-dark: #666666;
+  
+  --background: #FFFFFF;
+  --foreground: #1A1A1A;
+  --card-bg: #FFFFFF;
+  --muted: #666666;
+  --border: #E5E5E5;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-snoonu-red: var(--snoonu-red);
+  --color-snoonu-red-dark: var(--snoonu-red-dark);
+  --color-card-bg: var(--card-bg);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --font-sans: system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+/* Simple gradient for hero */
+.gradient-hero {
+  background: var(--snoonu-red);
+}
+
+.gradient-card {
+  background: var(--card-bg);
+}
