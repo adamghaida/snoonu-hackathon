@@ -1,4 +1,4 @@
-import { Creator, Merchant, Gig, Application } from './types';
+import { Creator, Merchant, Gig, Application, ApplicationStatus, CreatorCode, MerchantCodeActivation, CodeUsage, CreatorBasket } from './types';
 
 const STORAGE_KEYS = {
   CREATORS: 'snoonu_creators',
@@ -7,6 +7,10 @@ const STORAGE_KEYS = {
   APPLICATIONS: 'snoonu_applications',
   CURRENT_USER: 'snoonu_current_user',
   INITIALIZED: 'snoonu_initialized',
+  CREATOR_CODES: 'snoonu_creator_codes',
+  CODE_ACTIVATIONS: 'snoonu_code_activations',
+  CODE_USAGES: 'snoonu_code_usages',
+  CREATOR_BASKETS: 'snoonu_creator_baskets',
 };
 
 // Generic storage helpers
@@ -143,12 +147,58 @@ export function saveApplication(application: Application): void {
   setItem(STORAGE_KEYS.APPLICATIONS, applications);
 }
 
-export function updateApplicationStatus(id: string, status: Application['status']): void {
+export function updateApplicationStatus(id: string, status: ApplicationStatus): void {
   const applications = getApplications();
   const index = applications.findIndex(a => a.id === id);
   if (index >= 0) {
     applications[index].status = status;
     applications[index].respondedAt = new Date().toISOString();
+    setItem(STORAGE_KEYS.APPLICATIONS, applications);
+  }
+}
+
+// Submit content for review
+export function submitContent(applicationId: string, contentUrl: string): void {
+  const applications = getApplications();
+  const index = applications.findIndex(a => a.id === applicationId);
+  if (index >= 0) {
+    applications[index].status = 'submitted';
+    applications[index].submittedContentUrl = contentUrl;
+    applications[index].submittedAt = new Date().toISOString();
+    setItem(STORAGE_KEYS.APPLICATIONS, applications);
+  }
+}
+
+// Request revision on submitted content
+export function requestRevision(applicationId: string, feedback: string): void {
+  const applications = getApplications();
+  const index = applications.findIndex(a => a.id === applicationId);
+  if (index >= 0) {
+    applications[index].status = 'revision_requested';
+    applications[index].revisionFeedback = feedback;
+    applications[index].revisionRequestedAt = new Date().toISOString();
+    setItem(STORAGE_KEYS.APPLICATIONS, applications);
+  }
+}
+
+// Approve submitted content
+export function approveContent(applicationId: string): void {
+  const applications = getApplications();
+  const index = applications.findIndex(a => a.id === applicationId);
+  if (index >= 0) {
+    applications[index].status = 'approved';
+    applications[index].approvedAt = new Date().toISOString();
+    setItem(STORAGE_KEYS.APPLICATIONS, applications);
+  }
+}
+
+// Mark as paid
+export function markAsPaid(applicationId: string): void {
+  const applications = getApplications();
+  const index = applications.findIndex(a => a.id === applicationId);
+  if (index >= 0) {
+    applications[index].status = 'paid';
+    applications[index].paidAt = new Date().toISOString();
     setItem(STORAGE_KEYS.APPLICATIONS, applications);
   }
 }
@@ -188,3 +238,163 @@ export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+// ============ AFFILIATE CODES ============
+
+// Creator Codes
+export function getCreatorCodes(): CreatorCode[] {
+  return getItem<CreatorCode[]>(STORAGE_KEYS.CREATOR_CODES, []);
+}
+
+export function getCreatorCode(creatorId: string): CreatorCode | undefined {
+  return getCreatorCodes().find(c => c.creatorId === creatorId);
+}
+
+export function getCreatorCodeByCode(code: string): CreatorCode | undefined {
+  return getCreatorCodes().find(c => c.code.toLowerCase() === code.toLowerCase());
+}
+
+export function isCodeAvailable(code: string): boolean {
+  return !getCreatorCodeByCode(code);
+}
+
+export function saveCreatorCode(creatorCode: CreatorCode): void {
+  const codes = getCreatorCodes();
+  const index = codes.findIndex(c => c.creatorId === creatorCode.creatorId);
+  if (index >= 0) {
+    codes[index] = creatorCode;
+  } else {
+    codes.push(creatorCode);
+  }
+  setItem(STORAGE_KEYS.CREATOR_CODES, codes);
+}
+
+// Code Activations (merchant partnerships)
+export function getCodeActivations(): MerchantCodeActivation[] {
+  return getItem<MerchantCodeActivation[]>(STORAGE_KEYS.CODE_ACTIVATIONS, []);
+}
+
+export function getCodeActivationsByMerchant(merchantId: string): MerchantCodeActivation[] {
+  return getCodeActivations().filter(a => a.merchantId === merchantId);
+}
+
+export function getCodeActivationsByCreator(creatorId: string): MerchantCodeActivation[] {
+  return getCodeActivations().filter(a => a.creatorId === creatorId);
+}
+
+export function getCodeActivation(merchantId: string, creatorId: string): MerchantCodeActivation | undefined {
+  return getCodeActivations().find(a => a.merchantId === merchantId && a.creatorId === creatorId);
+}
+
+export function saveCodeActivation(activation: MerchantCodeActivation): void {
+  const activations = getCodeActivations();
+  const index = activations.findIndex(a => a.id === activation.id);
+  if (index >= 0) {
+    activations[index] = activation;
+  } else {
+    activations.push(activation);
+  }
+  setItem(STORAGE_KEYS.CODE_ACTIVATIONS, activations);
+}
+
+export function toggleCodeActivation(activationId: string, isActive: boolean): void {
+  const activations = getCodeActivations();
+  const index = activations.findIndex(a => a.id === activationId);
+  if (index >= 0) {
+    activations[index].isActive = isActive;
+    setItem(STORAGE_KEYS.CODE_ACTIVATIONS, activations);
+  }
+}
+
+// Code Usages (tracking)
+export function getCodeUsages(): CodeUsage[] {
+  return getItem<CodeUsage[]>(STORAGE_KEYS.CODE_USAGES, []);
+}
+
+export function getCodeUsagesByCreator(creatorId: string): CodeUsage[] {
+  return getCodeUsages().filter(u => u.creatorId === creatorId);
+}
+
+export function getCodeUsagesByMerchant(merchantId: string): CodeUsage[] {
+  return getCodeUsages().filter(u => u.merchantId === merchantId);
+}
+
+export function getCodeUsagesByCode(code: string): CodeUsage[] {
+  return getCodeUsages().filter(u => u.code.toLowerCase() === code.toLowerCase());
+}
+
+export function saveCodeUsage(usage: CodeUsage): void {
+  const usages = getCodeUsages();
+  usages.push(usage);
+  setItem(STORAGE_KEYS.CODE_USAGES, usages);
+}
+
+// Affiliate stats helper
+export function getAffiliateStats(creatorId: string): {
+  totalUses: number;
+  totalEarnings: number;
+  activeMerchants: number;
+  usagesByDay: { date: string; uses: number; earnings: number }[];
+} {
+  const usages = getCodeUsagesByCreator(creatorId);
+  const activations = getCodeActivationsByCreator(creatorId).filter(a => a.isActive);
+  
+  // Group by day for the chart
+  const usageMap = new Map<string, { uses: number; earnings: number }>();
+  usages.forEach(u => {
+    const date = u.usedAt.split('T')[0];
+    const existing = usageMap.get(date) || { uses: 0, earnings: 0 };
+    usageMap.set(date, {
+      uses: existing.uses + 1,
+      earnings: existing.earnings + u.commission,
+    });
+  });
+
+  // Convert to array and sort by date
+  const usagesByDay = Array.from(usageMap.entries())
+    .map(([date, data]) => ({ date, ...data }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  return {
+    totalUses: usages.length,
+    totalEarnings: usages.reduce((sum, u) => sum + u.commission, 0),
+    activeMerchants: activations.length,
+    usagesByDay,
+  };
+}
+
+// Creator Baskets
+export function getCreatorBaskets(): CreatorBasket[] {
+  return getItem<CreatorBasket[]>(STORAGE_KEYS.CREATOR_BASKETS, []);
+}
+
+export function getCreatorBasket(id: string): CreatorBasket | undefined {
+  return getCreatorBaskets().find(b => b.id === id);
+}
+
+export function getBasketsByCreator(creatorId: string): CreatorBasket[] {
+  return getCreatorBaskets().filter(b => b.creatorId === creatorId);
+}
+
+export function getBasketsByMerchant(merchantId: string): CreatorBasket[] {
+  return getCreatorBaskets().filter(b => b.merchantId === merchantId);
+}
+
+export function getBasketByCreatorAndMerchant(creatorId: string, merchantId: string): CreatorBasket | undefined {
+  return getCreatorBaskets().find(b => b.creatorId === creatorId && b.merchantId === merchantId);
+}
+
+export function saveCreatorBasket(basket: CreatorBasket): void {
+  const baskets = getCreatorBaskets();
+  const index = baskets.findIndex(b => b.id === basket.id);
+  if (index >= 0) {
+    baskets[index] = basket;
+  } else {
+    baskets.push(basket);
+  }
+  setItem(STORAGE_KEYS.CREATOR_BASKETS, baskets);
+}
+
+export function deleteCreatorBasket(id: string): void {
+  const baskets = getCreatorBaskets().filter(b => b.id !== id);
+  setItem(STORAGE_KEYS.CREATOR_BASKETS, baskets);
+}

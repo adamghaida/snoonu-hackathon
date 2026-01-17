@@ -1,4 +1,4 @@
-import { Merchant, Gig, Creator } from './types';
+import { Merchant, Gig, Creator, Application, CreatorCode, MerchantCodeActivation, CodeUsage, CreatorBasket } from './types';
 import {
     getMerchants,
     getGigs,
@@ -7,91 +7,95 @@ import {
     isInitialized,
     setInitialized,
     saveCreator,
-    getCreators
+    saveApplication,
+    getCreators,
+    saveCreatorCode,
+    saveCodeActivation,
+    saveCodeUsage,
+    saveCreatorBasket,
+    generateId
 } from './storage';
 
-// Sample Merchants (Restaurants in Qatar)
+// Real Qatari Restaurant Brands
 const sampleMerchants: Merchant[] = [
     {
         id: 'merchant-1',
-        name: 'Al Shami Restaurant',
-        logo: '🍖',
-        category: 'Middle Eastern',
-        description: 'Authentic Levantine cuisine with the finest shawarma and grills in Doha.',
-        location: 'The Pearl, Qatar',
-        rating: 4.8,
-        totalCampaigns: 12,
-    },
-    {
-        id: 'merchant-2',
-        name: 'Burger Boutique',
+        name: "Junior's",
         logo: '🍔',
-        category: 'American',
-        description: 'Gourmet burgers crafted with premium ingredients and unique flavors.',
-        location: 'Lusail City',
-        rating: 4.6,
-        totalCampaigns: 8,
-    },
-    {
-        id: 'merchant-3',
-        name: 'Sushi Mori',
-        logo: '🍣',
-        category: 'Japanese',
-        description: 'Premium Japanese cuisine featuring fresh sushi and traditional dishes.',
-        location: 'West Bay, Doha',
-        rating: 4.9,
+        category: 'Fast Food',
+        description: 'Made-in-Qatar casual fast-food chain with a focus on community and local sourcing.',
+        location: 'Multiple Locations, Qatar',
+        rating: 4.7,
         totalCampaigns: 15,
     },
     {
+        id: 'merchant-2',
+        name: 'Tea Time',
+        logo: '☕',
+        category: 'Café',
+        description: 'Popular café chain known for karak tea and affordable snacks across Qatar.',
+        location: 'Multiple Locations, Qatar',
+        rating: 4.5,
+        totalCampaigns: 20,
+    },
+    {
+        id: 'merchant-3',
+        name: 'Jiwan',
+        logo: '🍽️',
+        category: 'Fine Dining',
+        description: 'High-end restaurant focused on authentic Qatari cuisine at the National Museum of Qatar.',
+        location: 'National Museum, Doha',
+        rating: 4.9,
+        totalCampaigns: 8,
+    },
+    {
         id: 'merchant-4',
-        name: 'Mama\'s Kitchen',
-        logo: '🍝',
-        category: 'Italian',
-        description: 'Homestyle Italian cooking with handmade pasta and wood-fired pizzas.',
-        location: 'Souq Waqif',
-        rating: 4.7,
+        name: 'Bayt Sharq',
+        logo: '🏠',
+        category: 'Traditional',
+        description: 'Elegant restaurant serving traditional Qatari cuisine on the Corniche.',
+        location: 'Corniche, Doha',
+        rating: 4.8,
         totalCampaigns: 10,
     },
     {
         id: 'merchant-5',
-        name: 'Spice Route',
-        logo: '🍛',
-        category: 'Indian',
-        description: 'Authentic Indian flavors from various regions with aromatic spices.',
-        location: 'Katara Cultural Village',
-        rating: 4.5,
-        totalCampaigns: 6,
+        name: 'Pickl',
+        logo: '🥒',
+        category: 'Burgers',
+        description: 'Premium burger chain serving fresh, high-quality fast food.',
+        location: 'The Pearl, Qatar',
+        rating: 4.6,
+        totalCampaigns: 12,
     },
     {
         id: 'merchant-6',
-        name: 'Fresh Bites',
-        logo: '🥗',
-        category: 'Healthy',
-        description: 'Nutritious bowls, salads, and smoothies for health-conscious foodies.',
-        location: 'Msheireb Downtown',
-        rating: 4.4,
-        totalCampaigns: 5,
+        name: 'Bayt Alwaldah',
+        logo: '🍲',
+        category: 'Traditional',
+        description: 'Preserving traditional Qatari recipes with authentic flavors and heritage.',
+        location: 'Souq Waqif, Doha',
+        rating: 4.7,
+        totalCampaigns: 6,
     },
 ];
 
-// Sample Gigs
+// Sample Gigs with real Qatari brands
 const sampleGigs: Gig[] = [
     {
         id: 'gig-1',
         merchantId: 'merchant-1',
-        title: 'Shawarma Reel Challenge',
-        description: 'Create an engaging 30-60 second Instagram Reel showcasing our signature lamb shawarma. We want authentic, mouthwatering content that highlights the preparation and taste experience. The content should capture the sizzle, the wrap, and the first bite!',
+        title: "Junior's New Menu Launch Reel",
+        description: "Create an engaging Instagram Reel showcasing our new loaded fries and signature burgers. Show the food prep, the sizzle, and your reaction to the first bite!",
         contentType: 'reel',
         deliverables: [
             '1 Instagram Reel (30-60 seconds)',
-            'Tag @AlShamiQatar and @Snoonu',
-            'Use hashtags: #SnoonuEats #DohaFood',
-            'Story posts on day of posting',
+            "Tag @JuniorsQatar and @Snoonu",
+            'Use hashtag #JuniorsQatar',
         ],
         requirements: {
             minFollowers: 5000,
             platforms: ['instagram', 'tiktok'],
-            contentStyle: 'Food content, lifestyle',
         },
         compensation: {
             amount: 500,
@@ -105,21 +109,20 @@ const sampleGigs: Gig[] = [
     {
         id: 'gig-2',
         merchantId: 'merchant-2',
-        title: 'New Burger Launch - Photo Series',
-        description: 'We\'re launching our new Truffle Wagyu Burger and need stunning photography! Create a series of high-quality photos that make viewers crave this burger. Include detail shots, lifestyle shots, and the full burger presentation.',
-        contentType: 'photo',
+        title: 'Tea Time Karak Challenge',
+        description: "Film yourself trying our famous karak tea and snacks! We want authentic reactions and a fun, casual vibe. Perfect for TikTok creators.",
+        contentType: 'reel',
         deliverables: [
-            '5 high-resolution photos',
-            '3 Instagram carousel posts',
-            'Behind-the-scenes story content',
+            '1 TikTok video',
+            'Cross-post to Instagram',
+            'Tag @TeaTimeQatar',
         ],
         requirements: {
             minFollowers: 3000,
-            platforms: ['instagram'],
-            contentStyle: 'Food photography',
+            platforms: ['tiktok', 'instagram'],
         },
         compensation: {
-            amount: 750,
+            amount: 350,
             currency: 'QAR',
             type: 'fixed',
         },
@@ -130,19 +133,17 @@ const sampleGigs: Gig[] = [
     {
         id: 'gig-3',
         merchantId: 'merchant-3',
-        title: 'Omakase Experience Video',
-        description: 'Document the full omakase dining experience at Sushi Mori. We want a cinematic video showing the art of sushi preparation, the ambiance, and the culinary journey. This will be used for our social media and potentially TV advertising.',
+        title: 'Jiwan Fine Dining Experience',
+        description: "Document the full Jiwan dining experience at the National Museum. We want cinematic content showing the ambiance, the Qatari dishes, and the cultural experience.",
         contentType: 'video',
         deliverables: [
             '1 video (2-3 minutes)',
             'Vertical cut for Instagram/TikTok',
             'Horizontal cut for YouTube',
-            'Raw footage handover',
         ],
         requirements: {
             minFollowers: 10000,
-            platforms: ['youtube', 'instagram', 'tiktok'],
-            contentStyle: 'Cinematic food content',
+            platforms: ['youtube', 'instagram'],
         },
         compensation: {
             amount: 2000,
@@ -156,22 +157,20 @@ const sampleGigs: Gig[] = [
     {
         id: 'gig-4',
         merchantId: 'merchant-4',
-        title: 'Pizza Night Stories',
-        description: 'Create fun, engaging Instagram Stories showing a pizza night experience at Mama\'s Kitchen. Show the wood-fired oven, pizza making process, and enjoying with friends/family. We want authentic, relatable content!',
+        title: 'Bayt Sharq Sunset Stories',
+        description: "Capture the magic of dining at Bayt Sharq during sunset on the Corniche. Create Instagram Stories showing the view, the traditional food, and the atmosphere.",
         contentType: 'story',
         deliverables: [
             '10+ Instagram Stories',
             'Save as Highlight',
-            'Interactive polls and questions',
-            'Tag @MamasKitchenQA',
+            'Tag @BaytSharq',
         ],
         requirements: {
             minFollowers: 2000,
             platforms: ['instagram'],
-            contentStyle: 'Casual, fun, family-friendly',
         },
         compensation: {
-            amount: 300,
+            amount: 400,
             currency: 'QAR',
             type: 'fixed',
         },
@@ -182,18 +181,16 @@ const sampleGigs: Gig[] = [
     {
         id: 'gig-5',
         merchantId: 'merchant-5',
-        title: 'Authentic Indian Food Review',
-        description: 'Visit Spice Route and create an honest, detailed food review covering at least 5 dishes. We want genuine reactions and thoughtful commentary on flavors, presentation, and overall experience.',
+        title: 'Pickl Burger Review',
+        description: "Create an honest food review of our signature Pickl burgers. Try at least 3 items and share your genuine reactions. We want real opinions!",
         contentType: 'review',
         deliverables: [
             '1 YouTube review (5-8 minutes)',
-            'Short-form clips for TikTok/Reels',
-            'Written review for Google/TripAdvisor',
+            'Short clips for TikTok/Reels',
         ],
         requirements: {
             minFollowers: 8000,
             platforms: ['youtube', 'tiktok'],
-            contentStyle: 'Food review, honest opinions',
         },
         compensation: {
             amount: 1200,
@@ -207,21 +204,19 @@ const sampleGigs: Gig[] = [
     {
         id: 'gig-6',
         merchantId: 'merchant-6',
-        title: 'Healthy Lifestyle TikTok Series',
-        description: 'Create a series of TikToks promoting our new protein bowls and smoothies. Content should appeal to fitness enthusiasts and health-conscious audience. Show workout + meal prep + enjoying Fresh Bites!',
-        contentType: 'reel',
+        title: 'Bayt Alwaldah Heritage Content',
+        description: "Create content celebrating Qatari food heritage at Bayt Alwaldah. Show traditional dishes, cooking methods, and the cultural significance of our cuisine.",
+        contentType: 'video',
         deliverables: [
-            '3 TikTok videos',
-            'Cross-post to Instagram Reels',
-            'Day-in-my-life style content',
+            '1 main video (60-90 seconds)',
+            '3 short clips for Stories',
         ],
         requirements: {
             minFollowers: 5000,
-            platforms: ['tiktok', 'instagram'],
-            contentStyle: 'Fitness, healthy lifestyle',
+            platforms: ['instagram', 'tiktok'],
         },
         compensation: {
-            amount: 600,
+            amount: 800,
             currency: 'QAR',
             type: 'fixed',
         },
@@ -232,18 +227,39 @@ const sampleGigs: Gig[] = [
     {
         id: 'gig-7',
         merchantId: 'merchant-1',
-        title: 'Ramadan Special Campaign',
-        description: 'Create content promoting our special Ramadan iftar menu. Capture the spirit of gathering, sharing meals, and the special dishes we prepare for the holy month.',
+        title: "Junior's Family Meal Photo Shoot",
+        description: "Capture family-style photos of our sharing platters and combo meals. We need bright, appetizing images for our social media and app.",
+        contentType: 'photo',
+        deliverables: [
+            '10 high-quality photos',
+            '3 carousel posts',
+        ],
+        requirements: {
+            minFollowers: 3000,
+            platforms: ['instagram'],
+        },
+        compensation: {
+            amount: 600,
+            currency: 'QAR',
+            type: 'fixed',
+        },
+        deadline: '2026-02-20',
+        status: 'open',
+        createdAt: '2026-01-15',
+    },
+    {
+        id: 'gig-8',
+        merchantId: 'merchant-2',
+        title: 'Tea Time Ramadan Special',
+        description: "Create content for our Ramadan iftar menu. Capture the spirit of gathering, sharing meals, and our special Ramadan offerings.",
         contentType: 'video',
         deliverables: [
             '1 main video (60-90 seconds)',
-            '3 short clips for Stories',
-            'Carousel post with menu highlights',
+            'Story content',
         ],
         requirements: {
             minFollowers: 7000,
             platforms: ['instagram', 'tiktok'],
-            contentStyle: 'Cultural, family-oriented',
         },
         compensation: {
             amount: 1500,
@@ -252,32 +268,37 @@ const sampleGigs: Gig[] = [
         },
         deadline: '2026-03-01',
         status: 'open',
-        createdAt: '2026-01-15',
+        createdAt: '2026-01-09',
+    },
+];
+
+// Completed gigs (for tier demo)
+const completedGigs: Gig[] = [
+    {
+        id: 'gig-completed-1',
+        merchantId: 'merchant-2',
+        title: 'Tea Time Morning Vibe Reel',
+        description: 'Morning karak content',
+        contentType: 'reel',
+        deliverables: ['1 Reel'],
+        requirements: { minFollowers: 2000, platforms: ['instagram'] },
+        compensation: { amount: 400, currency: 'QAR', type: 'fixed' },
+        deadline: '2025-12-15',
+        status: 'completed',
+        createdAt: '2025-12-01',
     },
     {
-        id: 'gig-8',
-        merchantId: 'merchant-2',
-        title: 'Burger Mukbang Content',
-        description: 'Film a mukbang-style video trying our entire burger menu! We want entertaining, engaging content that showcases the variety and portion sizes. ASMR elements welcome!',
+        id: 'gig-completed-2',
+        merchantId: 'merchant-5',
+        title: 'Pickl Grand Opening Content',
+        description: 'Grand opening coverage',
         contentType: 'video',
-        deliverables: [
-            '1 YouTube video (10-15 minutes)',
-            'TikTok highlights',
-            'Thumbnail images',
-        ],
-        requirements: {
-            minFollowers: 15000,
-            platforms: ['youtube', 'tiktok'],
-            contentStyle: 'Mukbang, entertainment',
-        },
-        compensation: {
-            amount: 1800,
-            currency: 'QAR',
-            type: 'fixed',
-        },
-        deadline: '2026-02-20',
-        status: 'open',
-        createdAt: '2026-01-09',
+        deliverables: ['1 Video'],
+        requirements: { minFollowers: 5000, platforms: ['instagram', 'tiktok'] },
+        compensation: { amount: 800, currency: 'QAR', type: 'fixed' },
+        deadline: '2025-11-20',
+        status: 'completed',
+        createdAt: '2025-11-10',
     },
 ];
 
@@ -292,47 +313,211 @@ const sampleCreator: Creator = {
     socialHandles: [
         { platform: 'instagram', username: '@sara.eats.doha', followers: 25000 },
         { platform: 'tiktok', username: '@saraeats', followers: 45000 },
-        { platform: 'youtube', username: 'Sara Eats', followers: 12000 },
     ],
-    totalFollowers: 82000,
-    portfolioUrls: [
-        'https://instagram.com/p/example1',
-        'https://tiktok.com/@saraeats/video/example',
-    ],
+    totalFollowers: 70000,
+    portfolioUrls: ['https://instagram.com/sara.eats.doha'],
     contentTypes: ['reel', 'video', 'photo', 'review'],
     status: 'approved',
     appliedAt: '2025-12-01',
     approvedAt: '2025-12-05',
 };
 
+// Sample completed applications (for tier demo - showing creator has done 2 gigs)
+const completedApplications: Application[] = [
+    {
+        id: 'app-completed-1',
+        gigId: 'gig-completed-1',
+        creatorId: 'creator-demo',
+        pitch: 'I would love to create a morning karak vibe reel!',
+        sampleUrls: [],
+        status: 'paid',
+        appliedAt: '2025-12-02',
+        respondedAt: '2025-12-03',
+        submittedContentUrl: 'https://instagram.com/reel/example1',
+        submittedAt: '2025-12-10',
+        approvedAt: '2025-12-12',
+        paidAt: '2025-12-14',
+    },
+    {
+        id: 'app-completed-2',
+        gigId: 'gig-completed-2',
+        creatorId: 'creator-demo',
+        pitch: 'Excited to cover the grand opening!',
+        sampleUrls: [],
+        status: 'paid',
+        appliedAt: '2025-11-11',
+        respondedAt: '2025-11-12',
+        submittedContentUrl: 'https://instagram.com/reel/example2',
+        submittedAt: '2025-11-18',
+        approvedAt: '2025-11-19',
+        paidAt: '2025-11-20',
+    },
+];
+
+// Sample affiliate code for demo creator
+const sampleCreatorCode: CreatorCode = {
+    creatorId: 'creator-demo',
+    code: 'SARA',
+    createdAt: '2025-12-06',
+};
+
+// Sample merchant code activations
+// Note: merchant-1 (Junior's) has NO pre-existing activation so demo can test lookup
+const sampleCodeActivations: MerchantCodeActivation[] = [
+    {
+        id: 'activation-2',
+        merchantId: 'merchant-2', // Tea Time
+        creatorId: 'creator-demo',
+        code: 'SARA',
+        reward: {
+            type: 'freeItem',
+            value: 0,
+            description: 'Free karak with any order',
+        },
+        isActive: true,
+        activatedAt: '2025-12-15',
+    },
+    {
+        id: 'activation-3',
+        merchantId: 'merchant-5', // Pickl
+        creatorId: 'creator-demo',
+        code: 'SARA',
+        reward: {
+            type: 'percentage',
+            value: 15,
+            description: '15% off',
+        },
+        isActive: true,
+        activatedAt: '2025-12-20',
+    },
+];
+
+// Sample code usages for demo (last 7 days)
+function generateSampleUsages(): CodeUsage[] {
+    const usages: CodeUsage[] = [];
+    const now = new Date();
+
+    // Generate ~15 usages over the last 7 days
+    const usageData = [
+        { daysAgo: 0, count: 3, merchants: ['merchant-1', 'merchant-2', 'merchant-1'] },
+        { daysAgo: 1, count: 2, merchants: ['merchant-5', 'merchant-2'] },
+        { daysAgo: 2, count: 4, merchants: ['merchant-1', 'merchant-1', 'merchant-2', 'merchant-5'] },
+        { daysAgo: 3, count: 1, merchants: ['merchant-2'] },
+        { daysAgo: 4, count: 2, merchants: ['merchant-1', 'merchant-5'] },
+        { daysAgo: 5, count: 2, merchants: ['merchant-2', 'merchant-1'] },
+        { daysAgo: 6, count: 1, merchants: ['merchant-5'] },
+    ];
+
+    usageData.forEach(day => {
+        day.merchants.forEach((merchantId, i) => {
+            const date = new Date(now);
+            date.setDate(date.getDate() - day.daysAgo);
+            date.setHours(10 + i * 3, Math.floor(Math.random() * 60));
+
+            const orderValue = 50 + Math.floor(Math.random() * 100); // 50-150 QAR
+            const commission = orderValue * 0.06; // 6% for Silver tier
+
+            usages.push({
+                id: `usage-${day.daysAgo}-${i}`,
+                code: 'SARA',
+                merchantId,
+                creatorId: 'creator-demo',
+                orderValue,
+                commission: Math.round(commission * 100) / 100,
+                usedAt: date.toISOString(),
+            });
+        });
+    });
+
+    return usages;
+}
+
+// Sample Creator Baskets (curated orders from creators)
+const sampleCreatorBaskets: CreatorBasket[] = [
+    {
+        id: 'basket-1',
+        creatorId: 'creator-demo',
+        merchantId: 'merchant-1',
+        name: "Sara's Junior's Favorites",
+        description: 'My go-to order at Junior\'s - perfect for a cheat day! 🍔',
+        items: [
+            { id: 'item-1', name: 'Classic Smash Burger', price: 32, quantity: 1, image: '🍔' },
+            { id: 'item-2', name: 'Loaded Cheese Fries', price: 18, quantity: 1, image: '🍟' },
+            { id: 'item-3', name: 'Oreo Milkshake', price: 22, quantity: 1, image: '🥤' },
+        ],
+        totalPrice: 72,
+        affiliateCode: 'SARA',
+        createdAt: '2025-12-15',
+    },
+    {
+        id: 'basket-2',
+        creatorId: 'creator-demo',
+        merchantId: 'merchant-2',
+        name: "Sara's Tea Time Picks",
+        description: 'Best karak combo for studying or catching up with friends ☕',
+        items: [
+            { id: 'item-4', name: 'Karak Chai', price: 5, quantity: 2, image: '☕' },
+            { id: 'item-5', name: 'Cheese Samosa', price: 8, quantity: 3, image: '🥟' },
+            { id: 'item-6', name: 'Chicken Tikka Roll', price: 15, quantity: 1, image: '🌯' },
+        ],
+        totalPrice: 49,
+        affiliateCode: 'SARA',
+        createdAt: '2025-12-18',
+    },
+    {
+        id: 'basket-3',
+        creatorId: 'creator-demo',
+        merchantId: 'merchant-5',
+        name: "Sara's Pickl Feast",
+        description: 'Premium burger experience - worth every riyal! 🥒',
+        items: [
+            { id: 'item-7', name: 'The OG Burger', price: 45, quantity: 1, image: '🍔' },
+            { id: 'item-8', name: 'Truffle Fries', price: 25, quantity: 1, image: '🍟' },
+            { id: 'item-9', name: 'Fresh Lemonade', price: 15, quantity: 1, image: '🍋' },
+        ],
+        totalPrice: 85,
+        affiliateCode: 'SARA',
+        createdAt: '2025-12-20',
+    },
+];
+
 // Initialize mock data
 export function initializeMockData(): void {
     if (typeof window === 'undefined') return;
 
-    if (isInitialized()) {
-        return;
-    }
+    if (isInitialized()) return;
 
     // Save merchants
     sampleMerchants.forEach(merchant => saveMerchant(merchant));
 
-    // Save gigs
-    sampleGigs.forEach(gig => saveGig(gig));
+    // Save all gigs (open + completed)
+    [...sampleGigs, ...completedGigs].forEach(gig => saveGig(gig));
 
-    // Save sample creator
+    // Save creator
     saveCreator(sampleCreator);
 
+    // Save completed applications (for tier demo)
+    completedApplications.forEach(app => saveApplication(app));
+
+    // Save affiliate code for demo creator
+    saveCreatorCode(sampleCreatorCode);
+
+    // Save code activations
+    sampleCodeActivations.forEach(activation => saveCodeActivation(activation));
+
+    // Save sample code usages
+    generateSampleUsages().forEach(usage => saveCodeUsage(usage));
+
+    // Save creator baskets
+    sampleCreatorBaskets.forEach(basket => saveCreatorBasket(basket));
+
     setInitialized();
-    console.log('Mock data initialized successfully!');
 }
 
-// Get sample merchant for demo login
 export function getDemoMerchant(): Merchant {
     return sampleMerchants[0];
 }
 
-// Get sample creator for demo login
 export function getDemoCreator(): Creator {
     return sampleCreator;
 }
-

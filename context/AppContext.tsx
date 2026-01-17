@@ -1,22 +1,17 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { Creator, Merchant, Gig, Application, GigFilters, CreatorStats } from '@/lib/types';
+import { Creator, Merchant, Gig, Application, GigFilters, CreatorStats, ApplicationStatus } from '@/lib/types';
 import * as storage from '@/lib/storage';
 import { initializeMockData, getDemoCreator, getDemoMerchant } from '@/lib/data';
 
 interface AppState {
-    // User session
     currentUser: { type: 'creator' | 'merchant'; id: string } | null;
     currentCreator: Creator | null;
     currentMerchant: Merchant | null;
-
-    // Data
     gigs: Gig[];
     merchants: Merchant[];
     applications: Application[];
-
-    // UI state
     isLoading: boolean;
     filters: GigFilters;
 }
@@ -26,27 +21,25 @@ interface AppContextType extends AppState {
     loginAsCreator: (email: string) => boolean;
     loginAsMerchant: (id: string) => void;
     logout: () => void;
+    loginAsDemo: (type: 'creator' | 'merchant') => void;
 
     // Creator actions
     applyAsCreator: (creator: Omit<Creator, 'id' | 'status' | 'appliedAt'>) => Creator;
     applyToGig: (gigId: string, pitch: string, sampleUrls: string[]) => Application;
+    submitContent: (applicationId: string, contentUrl: string) => void;
 
     // Merchant actions
     createGig: (gig: Omit<Gig, 'id' | 'createdAt' | 'status'>) => Gig;
-    updateApplicationStatus: (applicationId: string, status: Application['status']) => void;
+    updateApplicationStatus: (applicationId: string, status: ApplicationStatus) => void;
+    requestRevision: (applicationId: string, feedback: string) => void;
+    approveContent: (applicationId: string) => void;
+    markAsPaid: (applicationId: string) => void;
 
-    // Data refresh
+    // Data
     refreshData: () => void;
     setFilters: (filters: GigFilters) => void;
-
-    // Stats
     getCreatorStats: () => CreatorStats;
-
-    // Filtered gigs
     getFilteredGigs: () => Gig[];
-
-    // Demo login
-    loginAsDemo: (type: 'creator' | 'merchant') => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -63,10 +56,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         filters: {},
     });
 
-    // Initialize data on mount
     useEffect(() => {
         initializeMockData();
-
         const user = storage.getCurrentUser();
         const gigs = storage.getGigs();
         const merchants = storage.getMerchants();
@@ -177,10 +168,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }, [refreshData]);
 
     const applyToGig = useCallback((gigId: string, pitch: string, sampleUrls: string[]): Application => {
-        if (!state.currentCreator) {
-            throw new Error('Must be logged in as creator');
-        }
-
+        if (!state.currentCreator) throw new Error('Must be logged in as creator');
         const application: Application = {
             id: storage.generateId(),
             gigId,
@@ -195,11 +183,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return application;
     }, [state.currentCreator, refreshData]);
 
-    const createGig = useCallback((gigData: Omit<Gig, 'id' | 'createdAt' | 'status'>): Gig => {
-        if (!state.currentMerchant) {
-            throw new Error('Must be logged in as merchant');
-        }
+    const submitContent = useCallback((applicationId: string, contentUrl: string) => {
+        storage.submitContent(applicationId, contentUrl);
+        refreshData();
+    }, [refreshData]);
 
+    const createGig = useCallback((gigData: Omit<Gig, 'id' | 'createdAt' | 'status'>): Gig => {
+        if (!state.currentMerchant) throw new Error('Must be logged in as merchant');
         const gig: Gig = {
             ...gigData,
             id: storage.generateId(),
@@ -212,8 +202,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return gig;
     }, [state.currentMerchant, refreshData]);
 
-    const updateApplicationStatus = useCallback((applicationId: string, status: Application['status']) => {
+    const updateApplicationStatus = useCallback((applicationId: string, status: ApplicationStatus) => {
         storage.updateApplicationStatus(applicationId, status);
+        refreshData();
+    }, [refreshData]);
+
+    const requestRevision = useCallback((applicationId: string, feedback: string) => {
+        storage.requestRevision(applicationId, feedback);
+        refreshData();
+    }, [refreshData]);
+
+    const approveContent = useCallback((applicationId: string) => {
+        storage.approveContent(applicationId);
+        refreshData();
+    }, [refreshData]);
+
+    const markAsPaid = useCallback((applicationId: string) => {
+        storage.markAsPaid(applicationId);
         refreshData();
     }, [refreshData]);
 
@@ -223,23 +228,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const getFilteredGigs = useCallback((): Gig[] => {
         let filtered = state.gigs.filter(g => g.status === 'open');
-
         if (state.filters.contentType) {
             filtered = filtered.filter(g => g.contentType === state.filters.contentType);
         }
-
         if (state.filters.minCompensation) {
             filtered = filtered.filter(g => g.compensation.amount >= state.filters.minCompensation!);
         }
-
         if (state.filters.maxCompensation) {
             filtered = filtered.filter(g => g.compensation.amount <= state.filters.maxCompensation!);
         }
-
         if (state.filters.category) {
             filtered = filtered.filter(g => g.merchant?.category === state.filters.category);
         }
-
         if (state.filters.search) {
             const search = state.filters.search.toLowerCase();
             filtered = filtered.filter(g =>
@@ -248,7 +248,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 g.merchant?.name.toLowerCase().includes(search)
             );
         }
-
         return filtered;
     }, [state.gigs, state.filters]);
 
@@ -256,20 +255,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (!state.currentCreator) {
             return { totalEarnings: 0, completedGigs: 0, pendingApplications: 0, acceptedApplications: 0 };
         }
-
         const myApplications = state.applications.filter(a => a.creatorId === state.currentCreator!.id);
-        const completed = myApplications.filter(a => a.status === 'completed');
+        const paid = myApplications.filter(a => a.status === 'paid');
         const pending = myApplications.filter(a => a.status === 'pending');
-        const accepted = myApplications.filter(a => a.status === 'accepted');
+        const accepted = myApplications.filter(a => a.status === 'accepted' || a.status === 'submitted' || a.status === 'revision_requested');
 
-        const totalEarnings = completed.reduce((sum, app) => {
+        const totalEarnings = paid.reduce((sum, app) => {
             const gig = state.gigs.find(g => g.id === app.gigId);
             return sum + (gig?.compensation.amount || 0);
         }, 0);
 
         return {
             totalEarnings,
-            completedGigs: completed.length,
+            completedGigs: paid.length,
             pendingApplications: pending.length,
             acceptedApplications: accepted.length,
         };
@@ -283,8 +281,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         logout,
         applyAsCreator,
         applyToGig,
+        submitContent,
         createGig,
         updateApplicationStatus,
+        requestRevision,
+        approveContent,
+        markAsPaid,
         refreshData,
         setFilters,
         getCreatorStats,
@@ -301,4 +303,3 @@ export function useApp() {
     }
     return context;
 }
-
